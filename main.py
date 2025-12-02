@@ -40,7 +40,7 @@ CONFIG = {
 
 def main():
     print("=" * 60)
-    print("      AI PORTFOLIO OPTIMIZER (FINAL VERSION)")
+    print("      AI PORTFOLIO OPTIMIZER")
     print("=" * 60)
 
     # 1. CLEANUP
@@ -52,7 +52,14 @@ def main():
     # 2. DATA COLLECTION
     print("\n[STEP 1] Data Collection...")
     tickers = download_hsi_constituents()
-    prices = download_monthly_prices(tickers, "2023-01-01", CONFIG["TEST_END"])
+    
+    buffer_months = CONFIG["LOOKBACK"] + 6
+    data_start_date = pd.to_datetime(CONFIG["VAL_START"]) - pd.DateOffset(months=buffer_months)
+    
+    print(f"  > Config Validation Start: {CONFIG['VAL_START']}")
+    print(f"  > Auto-Calculated Data Download Start: {data_start_date.date()}")
+
+    prices = download_monthly_prices(tickers, data_start_date, CONFIG["TEST_END"])
     prices.to_csv('data/monthly_prices.csv')
     
     returns = calculate_monthly_returns(prices)
@@ -63,8 +70,24 @@ def main():
     print("  ✓ Data saved.")
 
     # 3. SCHEDULE
-    val_dates = pd.date_range(CONFIG["VAL_START"], "2024-10-01", freq=CONFIG["FREQ"])
-    test_dates = pd.date_range("2024-10-01", CONFIG["TEST_END"], freq=CONFIG["FREQ"])
+    print(f"\n[STEP 2] Generating Rebalancing Schedule...")
+    
+    # Validation Period: From VAL_START to TEST_START
+    val_dates = pd.date_range(
+        start=CONFIG["VAL_START"], 
+        end=CONFIG["TEST_START"], 
+        freq=CONFIG["FREQ"]
+    )
+    
+    # Test Period: From TEST_START to TEST_END
+    test_dates = pd.date_range(
+        start=CONFIG["TEST_START"], 
+        end=CONFIG["TEST_END"], 
+        freq=CONFIG["FREQ"]
+    )
+    
+    print(f"  > Validation: {val_dates[0].date()} -> {val_dates[-1].date()} ({len(val_dates)} periods)")
+    print(f"  > Testing:    {test_dates[0].date()} -> {test_dates[-1].date()} ({len(test_dates)} periods)")
 
     # 4. MINING & OPTIMIZATION
     print("\n[STEP 2] Mining Views & Running Optimization...")
